@@ -28,7 +28,7 @@ Recovered on 2026-08-26. SHA-256 values are used to verify archive integrity.
 | HISHCHENIE_REVIVAL_R5_STABLE_STATE_REFRESH_UPDATE_ONLY.zip | 79549 | `ebe35ebe9f515dca9cfbb18a3ab9dc201e4519d86f419bda2a5a465e0471c379` |
 | HISHCHENIE_V2_FOUNDATION_R1.zip | 11417451 | `1b8df58c59729c8fef704feab060b4b78357ff31b5a20b6a077eb20e1f3c4589` |
 | Legacy package 5 (original filename encoding damaged) | 1697624 | `743a24f058cc1bb5cc9afcb20f5af457182c755a032e6a02ba4d48a4fe2a4826` |
-| HISHCHENIE_REVIVAL_R6_PROFILE_SAFETY_REPORT_UPDATE_ONLY.zip | 76697 | `6c4adbf7ed08d94822773902b38ff02b79d5045d943ef6b02f07c34795cf2029` |
+| HISHCHENIE_REVIVAL_R6_PROFILE_SAFETY_REPORT_UPDATE_ONLY.zip | 77264 | `586494ac4b6e53189f2edfbd4fc6942432644a29c58f2bab2e42571d68037820` |
 
 ## Lineage note
 P20–P22 are retained as rejected large-redesign experiments. REVIVAL R1–R6 represent the return to and continuation of the approved site direction.
