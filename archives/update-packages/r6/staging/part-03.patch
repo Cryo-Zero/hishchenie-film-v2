@@ -1,0 +1,166 @@
+lt04: 'THEFT poster — hooded figure', galleryAlt05: 'THEFT film poster', galleryAlt06: 'THEFT poster — protagonist in a ruined city', galleryAlt07: 'THEFT poster — news anchor', galleryAlt08: 'THEFT poster — city', galleryAlt09: 'THEFT poster — Gor', galleryAlt10: 'Frames from THEFT', galleryAlt11: 'THEFT visual material',
+       contactsLabel: '07 / CONTACT', contactsTitle: 'Contacts',
+       contactSignal: 'CONTACT SIGNAL // AUTHOR', contactOpen: 'CHANNEL // OPEN ↗',
+       securityTeaser: 'SYS // SECURITY: PRESENT', securityTitle: 'There is safety on this site',
+-      securityText: 'No email, phone number or password. The site stores only a technical identifier, alias, avatar settings, score and review text, plus your reactions and replies if you use them. The profile is tied to this browser; clearing browser data may remove access to editing the old review.',
++      securityText: 'No email, phone number or password. The site stores only a technical identifier, alias, avatar settings, score and review text, plus your reactions and replies if you use them. The profile is tied to this browser; clearing cookies or site data, switching browser, or using another device may remove access to editing the old review.',
+       securityClose: 'Hide',
++      reportBug: 'Report a bug', reportTitle: 'REPORT // BUG CHANNEL', reportLead: 'Found a problem? Send the developer a short description and optionally attach the technical summary.', reportCopy: 'Copy diagnostics', reportCopied: 'Diagnostics copied', reportOpen: 'Contact developer', reportClose: 'Close', reportPrivacy: 'Diagnostics never include review text, alias, UUID, or other profile data.',
+       footer: 'Official film website · the film is in development',
+       close: 'Close', previousImage: 'Previous image', nextImage: 'Next image', openImage: 'Open selected image', galleryAria: 'Film materials gallery', lightboxAria: 'Image viewer',
+       langButton: 'RU',
+@@ -267,11 +271,16 @@
+     if ((m = code.match(/^noun_(\d+)$/))) return `${pair('nouns',+m[1],lang)} // ${String(n).padStart(3,'0')}`;
+     if (code === 'record') return lang === 'ru' ? `Запись ${String(Math.floor(n/100)).padStart(2,'0')}-${String(n%100).padStart(2,'0')}` : `Record ${String(Math.floor(n/100)).padStart(2,'0')}-${String(n%100).padStart(2,'0')}`;
+     if ((m = code.match(/^rw_(\d+)_(\d+)$/))) return `${pair('roles',+m[1],lang)} / ${pair('worlds',+m[2],lang)}`;
++    if ((m = code.match(/^sr_(\d+)_(\d+)$/))) return `${pair('worlds',+m[2],lang)}-${String(n).padStart(3,'0')} // ${pair('roles',+m[1],lang)}`;
++    if ((m = code.match(/^signal_(\d+)_(\d+)$/))) return `${lang === 'ru' ? 'Сигнал' : 'Signal'} // ${pair('adjectives',+m[1],lang)} ${pair('nouns',+m[2],lang)}`;
++    if ((m = code.match(/^node_(\d+)$/))) return `${lang === 'ru' ? 'Узел' : 'Node'}-${String(n).padStart(3,'0')} // ${pair('nouns',+m[1],lang)}`;
++    if ((m = code.match(/^trace_(\d+)$/))) return `${lang === 'ru' ? 'След' : 'Trace'} // ${pair('phrases',+m[1],lang)}`;
++    if ((m = code.match(/^gate_(\d+)$/))) return `${lang === 'ru' ? 'Шлюз' : 'Gate'}-${String(n).padStart(3,'0')} / ${pair('worlds',+m[1],lang)}`;
+     return profile.display_name || (lang === 'ru' ? 'Неизвестный профиль' : 'Unknown profile');
+   }
+ 
+   function generateAliasProfile() {
+-    const type = randomInt(9);
++    const type = randomInt(14);
+     let alias_code, alias_number = randomInt(1000);
+     if (type === 0) alias_code = `an_${randomInt(ALIAS.adjectives.length)}_${randomInt(ALIAS.nouns.length)}`;
+     else if (type === 1) alias_code = `role_${randomInt(ALIAS.roles.length)}`;
+@@ -281,10 +290,37 @@
+     else if (type === 5) alias_code = `world_${randomInt(ALIAS.worlds.length)}`;
+     else if (type === 6) alias_code = `noun_${randomInt(ALIAS.nouns.length)}`;
+     else if (type === 7) { alias_code = 'record'; alias_number = randomInt(1000); }
+-    else alias_code = `rw_${randomInt(ALIAS.roles.length)}_${randomInt(ALIAS.worlds.length)}`;
++    else if (type === 8) alias_code = `rw_${randomInt(ALIAS.roles.length)}_${randomInt(ALIAS.worlds.length)}`;
++    else if (type === 9) alias_code = `sr_${randomInt(ALIAS.roles.length)}_${randomInt(ALIAS.worlds.length)}`;
++    else if (type === 10) alias_code = `signal_${randomInt(ALIAS.adjectives.length)}_${randomInt(ALIAS.nouns.length)}`;
++    else if (type === 11) alias_code = `node_${randomInt(ALIAS.nouns.length)}`;
++    else if (type === 12) alias_code = `trace_${randomInt(ALIAS.phrases.length)}`;
++    else alias_code = `gate_${randomInt(ALIAS.worlds.length)}`;
+     const p = { alias_code, alias_number, display_name:'', avatar_seed:randomSeed(), avatar_style:randomInt(6)+1, is_official:false };
+     p.display_name = renderAlias(p, state.lang).slice(0,40);
+     return p;
++  }
++
++  function aliasConflict(err) {
++    const code=String(err?.payload?.code||err?.payload?.error_code||'');
++    const msg=String(err?.message||'');
++    return code==='23505' || /profiles_unique_alias_identity|duplicate key.*alias/i.test(msg);
++  }
++
++  async function saveProfileUnique(profile, attempts=8) {
++    let p={...profile};
++    for(let i=0;i<attempts;i++){
++      p.display_name=renderAlias(p,state.lang).slice(0,40);
++      try {
++        const saved=await rpcPost('update_my_profile_v4',{p_display_name:p.display_name,p_alias_code:p.alias_code,p_alias_number:p.alias_number,p_avatar_seed:p.avatar_seed,p_avatar_style:p.avatar_style});
++        return saved;
++      } catch(err) {
++        if(!aliasConflict(err) || i===attempts-1) throw err;
++        const fresh=generateAliasProfile();
++        p={...p,alias_code:fresh.alias_code,alias_number:fresh.alias_number};
++      }
++    }
++    throw new ApiError('Alias allocation failed',409,'ALIAS_EXHAUSTED');
+   }
+ 
+   const AVATAR_PORTRAITS = [1,2,3,4,5,6,7,8,10,11,12,13,14,15,16];
+@@ -580,7 +616,7 @@
+     identityPromise=(async()=>{
+       const s=await getSession(true); state.user=s.user;
+       const p=profileForWrite();
+-      const saved=await rpcPost('update_my_profile_v4',{p_display_name:p.display_name,p_alias_code:p.alias_code,p_alias_number:p.alias_number,p_avatar_seed:p.avatar_seed,p_avatar_style:p.avatar_style});
++      const saved=await saveProfileUnique(p);
+       state.profile=saved;state.pendingProfile=null;renderProfile();return saved;
+     })();
+     try{return await identityPromise;}finally{identityPromise=null;}
+@@ -606,7 +642,7 @@
+     const p={...base,alias_code:fresh.alias_code,alias_number:fresh.alias_number};p.display_name=renderAlias(p,state.lang).slice(0,40);
+     if(!state.user&&!loadSession()){state.pendingProfile=p;renderProfile();return;}
+     profileMutation=true;setProfileBusy(true);
+-    try{await getSession(true);const saved=await rpcPost('update_my_profile_v4',{p_display_name:p.display_name,p_alias_code:p.alias_code,p_alias_number:p.alias_number,p_avatar_seed:p.avatar_seed,p_avatar_style:p.avatar_style});commitProfileMutation(saved);}
++    try{await getSession(true);const saved=await saveProfileUnique(p);commitProfileMutation(saved);}
+     catch(err){console.error('[P14/profile/name]',err);setStatus(`${t('profileError')} [${err.code||'PROFILE'}]`,'error');}
+     finally{profileMutation=false;setProfileBusy(false);}
+   }
+@@ -615,7 +651,7 @@
+     const base={...(state.profile||state.pendingProfile||generateAliasProfile())};base.avatar_seed=randomSeed();base.avatar_style=randomInt(6)+1;base.display_name=renderAlias(base,state.lang).slice(0,40);
+     if(!state.user&&!loadSession()){state.pendingProfile=base;renderProfile();return;}
+     profileMutation=true;setProfileBusy(true);
+-    try{await getSession(true);const saved=await rpcPost('update_my_profile_v4',{p_display_name:base.display_name,p_alias_code:base.alias_code,p_alias_number:base.alias_number,p_avatar_seed:base.avatar_seed,p_avatar_style:base.avatar_style});commitProfileMutation(saved);}
++    try{await getSession(true);const saved=await saveProfileUnique(base);commitProfileMutation(saved);}
+     catch(err){console.error('[P14/profile/avatar]',err);setStatus(`${t('profileError')} [${err.code||'PROFILE'}]`,'error');}
+     finally{profileMutation=false;setProfileBusy(false);}
+   }
+@@ -680,6 +716,23 @@
+     try{return await challengePromise;}finally{challengePromise=null;}
+   }
+ 
++  async function submitReviewUnique(payload, profile, attempts=8){
++    let p={...profile};
++    for(let i=0;i<attempts;i++){
++      p.display_name=renderAlias(p,state.lang).slice(0,40);
++      try{
++        const data=await rpcPost('submit_my_review_v5',{...payload,p_display_name:p.display_name,p_alias_code:p.alias_code,p_alias_number:p.alias_number,p_avatar_seed:p.avatar_seed,p_avatar_style:p.avatar_style});
++        return data;
++      }catch(err){
++        if(!aliasConflict(err) || i===attempts-1)throw err;
++        const fresh=generateAliasProfile();
++        p={...p,alias_code:fresh.alias_code,alias_number:fresh.alias_number};
++        state.pendingProfile=p;renderProfile();
++      }
++    }
++    throw new ApiError('Alias allocation failed',409,'ALIAS_EXHAUSTED');
++  }
++
+   async function submitReview(){
+     if(state.busy||profileMutation||!state.bootReady)return;
+     if(state.channel?.reviews_enabled===false){setStatus(t('channelClosedNote'),'');return;}
+@@ -700,7 +753,7 @@
+     let unlocked=false;
+     try{
+       const session=await getSession(true);state.user=session.user;
+-      const data=await rpcPost('submit_my_review_v5',{p_rating:rating,p_review_text:text,p_display_name:p.display_name,p_alias_code:p.alias_code,p_alias_number:p.alias_number,p_avatar_seed:p.avatar_seed,p_avatar_style:p.avatar_style,p_challenge_id:challenge?.id||null,p_challenge_answer:challenge?.answer??null});
++      const data=await submitReviewUnique({p_rating:rating,p_review_text:text,p_challenge_id:challenge?.id||null,p_challenge_answer:challenge?.answer??null},p);
+       state.profile=data.profile;state.pendingProfile=null;state.ownReview=data.review;state.selectedRating=Number(data.review.rating);
+       renderProfile();updateComposerUI();updateRatingLabel();applyLocalReviewStats(previousReview,data.review);
+       setStatus(existed?t('updated'):t('saved'),'success');
+@@ -975,6 +1028,37 @@
+   }
+   if(communityBus)communityBus.onmessage=()=>schedulePublicSync(120);
+ 
++  function setOverlay(open, selector, trigger){
++    const panel=$(selector), button=$(trigger);if(!panel)return;
++    panel.hidden=!open;panel.setAttribute('aria-hidden',String(!open));
++    button?.setAttribute('aria-expanded',String(open));
++    document.body.classList.toggle('info-overlay-open',open);
++    if(open)setTimeout(()=>$('.info-overlay-close',panel)?.focus(),0);
++  }
++  function diagnosticsText(){
++    const vv=window.visualViewport;
++    return [
++      'THEFT // BUG REPORT',
++      `BUILD: REVIVAL R6`,
++      `PAGE: ${location.pathname}${location.hash}`,
++      `LANG: ${state.lang}`,
++      `VIEWPORT: ${Math.round(vv?.width||innerWidth)}x${Math.round(vv?.height||innerHeight)}`,
++      `SCREEN: ${screen.width}x${screen.height}`,
++      `UA: ${navigator.userAgent}`,
++      `ONLINE: ${navigator.onLine?'YES':'NO'}`
++    ].join('\n');
++  }
++  async function copyDiagnostics(){
++    const text=diagnosticsText();
++    try{await navigator.clipboard.writeText(text);}catch{const ta=document.createElement('textarea');ta.value=text;ta.style.position='fixed';ta.style.opacity='0';document.body.append(ta);ta.select();document.execCommand('copy');ta.remove();}
++    const b=$('#bugReportCopy');if(b){const old=b.textContent;b.textContent=t('reportCopied');setTimeout(()=>b.textContent=t('reportCopy'),1600);}
++  }
++  function openDeveloperReport(){
++    const body=`\n\n---\n${diagnosticsText()}`;
++    const url=`https://github.com/Cryo-Zero/hishchenie-film/issues/new?title=${encodeURIComponent('[BUG] ')}&body=${encodeURIComponent(body)}`;
++    window.open(url,'_blank','noopener,noreferrer');
++  }
++
+   function bindEvents(){
+     $('#langToggle')?.addEventListener('click',()=>setLanguage(state.lang==='ru'?'en':'ru'));
+     $('#rerollName')?.add
