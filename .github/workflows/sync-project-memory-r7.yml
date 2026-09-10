@@ -1,0 +1,36 @@
+name: Sync R7 project memory once
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  sync-memory:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Copy canonical memory from production repository
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p snapshots/project-memory/current
+          for file in PROJECT-STATE.md DECISIONS.md VISUAL-SYSTEM.md ROADMAP.md BACKLOG.md; do
+            curl -fsSL "https://raw.githubusercontent.com/Cryo-Zero/hishchenie-film/main/docs/current/${file}" -o "snapshots/project-memory/current/${file}"
+          done
+      - name: Commit verified memory copy and remove workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f .github/workflows/sync-project-memory-r7.yml
+          git config user.name "Cryo-Zero"
+          git config user.email "Bogdan.Vedrentsov@gmail.com"
+          git add snapshots/project-memory/current .github/workflows/sync-project-memory-r7.yml
+          git commit -m "docs: sync R7 project-memory checkpoint [skip ci]"
+          git push origin HEAD:main
